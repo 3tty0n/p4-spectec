@@ -51,8 +51,8 @@ type typcase = Il.Ast.typcase
 type vid = Il.Ast.vid
 type vnote = Il.Ast.vnote
 
-type value = Il.Ast.value
-type value' = Il.Ast.value'
+type value = Il.Ast.value [@@deriving yojson]
+type value' = Il.Ast.value' [@@deriving yojson]
 
 type valuefield = atom * value
 type valuecase = mixop * value list
@@ -131,7 +131,7 @@ and guard =
 and instr = instr' phrase [@@deriving yojson]
 and instr' =
   | IfI of exp * iterexp list * instr list * phantom option
-  | CaseI of exp * case list * phantom option 
+  | CaseI of exp * case list * phantom option
   | OtherwiseI of instr
   | LetI of exp * exp * iterexp list
   | RuleI of id * notexp * iterexp list

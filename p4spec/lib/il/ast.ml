@@ -65,10 +65,10 @@ and typcase = nottyp
 
 (* Values *)
 
-and vid = int
-and vnote = { vid : vid; typ : typ' }
+and vid = int [@@deriving yojson]
+and vnote = { vid : vid; typ : typ' } [@@deriving yojson]
 
-and value = (value', vnote) note
+and value = (value', vnote) note [@@deriving yojson]
 and value' =
   | BoolV of bool
   | NumV of Num.t
@@ -79,6 +79,7 @@ and value' =
   | OptV of value option
   | ListV of value list
   | FuncV of id
+[@@deriving yojson]
 
 and valuefield = atom * value
 and valuecase = mixop * value list
