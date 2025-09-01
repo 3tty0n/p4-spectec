@@ -102,6 +102,7 @@ let run_sl_command =
      and includes_p4 = flag "-i" (listed string) ~doc:"p4 include paths"
      and filename_p4 = flag "-p" (required string) ~doc:"p4 file to typecheck"
      and derive = flag "-derive" no_arg ~doc:"derive value dependency graph"
+     and json = flag "-json" no_arg ~doc:"emit value list as JSON"
      and filenames_ignore =
        flag "-ignore" (listed string)
          ~doc:"relations or functions to ignore when reporting coverage"
@@ -111,13 +112,28 @@ let run_sl_command =
          let spec = List.concat_map Frontend.Parse.parse_file filenames_spec in
          let spec_il = Elaborate.Elab.elab_spec spec in
          let spec_sl = Structure.Struct.struct_spec spec_il in
-         match
-           Interp_sl.Typing.run_typing ~derive spec_sl includes_p4 filename_p4
-             filenames_ignore
-         with
-         | WellTyped _ -> Format.printf "well-typed\n"
-         | IllTyped (_, msg, _) -> Format.printf "ill-typed: %s\n" msg
-         | IllFormed (msg, _) -> Format.printf "ill-formed: %s\n" msg
+         if json then
+           (match
+              Interp_sl.Typing.run_typing_with_value ~derive spec_sl includes_p4
+                filename_p4 filenames_ignore
+            with
+            | WellTyped' (_, _, _, values) ->
+              List.iter (
+                fun value ->
+                  let yojson = Sl.Ast.value_to_yojson value in
+                  Yojson.Safe.pretty_print Format.std_formatter yojson
+              ) values;
+              print_newline ()
+            | IllTyped' (_, msg, _, _) -> Format.printf "ill-typed: %s\n" msg
+            | IllFormed' (msg, _, _) -> Format.printf "ill-formed: %s\n" msg)
+         else
+           (match
+              Interp_sl.Typing.run_typing ~derive spec_sl includes_p4 filename_p4
+                filenames_ignore
+            with
+            | WellTyped _ -> Format.printf "well-typed\n"
+            | IllTyped (_, msg, _) -> Format.printf "ill-typed: %s\n" msg
+            | IllFormed (msg, _) -> Format.printf "ill-formed: %s\n" msg)
        with
        | ParseError (at, msg) -> Format.printf "%s\n" (string_of_error at msg)
        | ElabError (at, msg) -> Format.printf "%s\n" (string_of_error at msg))

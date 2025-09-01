@@ -24,6 +24,11 @@ type res =
   | IllTyped of region * string * SCov.Cover.t
   | IllFormed of string * SCov.Cover.t
 
+type res_with_value =
+  | WellTyped' of Dep.Graph.t * vid * SCov.Cover.t * value list
+  | IllTyped' of region * string * SCov.Cover.t * value list
+  | IllFormed' of string * SCov.Cover.t * value list
+
 let run_typing_internal (spec : spec) (filename_p4 : string)
     (value_program : value) (ignores : IdSet.t) : res =
   Builtin.init ();
@@ -60,11 +65,37 @@ let run_typing' ?(derive : bool = false) (spec : spec)
   | Util.Error.ConvertInError msg -> IllFormed (msg, !cover)
   | Util.Error.InterpError (at, msg) -> IllTyped (at, msg, !cover)
 
+let run_typing_with_value' ?(derive : bool = false) (spec : spec)
+    (includes_p4 : string list) (filename_p4 : string) (ignores : IdSet.t) : res_with_value
+  =
+  Builtin.init ();
+  Value.refresh ();
+  Cache.reset !Interp.func_cache;
+  Cache.reset !Interp.rule_cache;
+  let graph = Dep.Graph.init () in
+  let cover = ref (SCov.init ignores spec) in
+  try
+    let value_program = Convert.In.in_program graph includes_p4 filename_p4 in
+    let ctx =
+      Ctx.empty ~derive filename_p4 graph value_program.note.vid cover
+    in
+    let ctx, _values = do_typing ctx spec value_program in
+    WellTyped' (ctx.graph, ctx.vid_program, !(ctx.cover), _values)
+  with
+  | Util.Error.ConvertInError msg  -> IllFormed' (msg, !cover, [])
+  | Util.Error.InterpError (at, msg) -> IllTyped' (at, msg, !cover, [])
+
 let run_typing ?(derive : bool = false) (spec : spec)
     (includes_p4 : string list) (filename_p4 : string)
     (filenames_ignore : string list) : res =
   let ignores = Ignore.init filenames_ignore in
   run_typing' ~derive spec includes_p4 filename_p4 ignores
+
+let run_typing_with_value ?(derive : bool = false) (spec : spec)
+    (includes_p4 : string list) (filename_p4 : string)
+    (filenames_ignore : string list) : res_with_value =
+  let ignores = Ignore.init filenames_ignore in
+  run_typing_with_value' ~derive spec includes_p4 filename_p4 ignores
 
 (* Entry point : Measure spec coverage of phantom nodes *)
 
