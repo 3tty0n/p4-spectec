@@ -1,6 +1,7 @@
 (executable
  (public_name p4spec)
  (name main)
+ (modes byte native)
  (preprocess
   (pps ppx_let))
  (modules main)
